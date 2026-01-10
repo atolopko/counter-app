@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.counterapp.data.Counter
 import com.example.counterapp.ui.HomeViewModel
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,37 +90,49 @@ fun CounterItem(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(text = counter.name, style = MaterialTheme.typography.headlineSmall)
-                    Text(text = "Count: ${counter.currentCount}", style = MaterialTheme.typography.bodyLarge)
-                }
-                IconButton(onClick = onViewHistory) {
-                    Icon(Icons.Default.History, contentDescription = "History")
+                Text(
+                    text = counter.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Row {
+                    IconButton(onClick = onViewHistory) {
+                        Icon(Icons.Default.History, contentDescription = "History")
+                    }
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            
+            Text(
+                text = "${counter.currentCount}",
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 32.dp)
+            )
+
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp),
+                onClick = { onIncrement(counter.lastIncrementAmount) },
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { onIncrement(counter.lastIncrementAmount) }
-                ) {
-                    Text("+ ${counter.lastIncrementAmount}")
-                }
-                OutlinedButton(
-                    onClick = onEdit
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit")
-                }
+                Text(
+                    text = "+ ${counter.lastIncrementAmount}",
+                    style = MaterialTheme.typography.headlineMedium
+                )
             }
         }
     }
