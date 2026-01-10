@@ -57,43 +57,43 @@ fun HistoryScreen(
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (logs.isNotEmpty()) {
-                val chartEntryModelProducer = remember { ChartEntryModelProducer() }
-                LaunchedEffect(logs) {
-                    chartEntryModelProducer.setEntries(logs.reversed().mapIndexed { index, log -> entryOf(index.toFloat(), log.resultingCount) })
-                }
+            item {
+                if (logs.isNotEmpty()) {
+                    val chartEntryModelProducer = remember { ChartEntryModelProducer() }
+                    LaunchedEffect(logs) {
+                        chartEntryModelProducer.setEntries(logs.reversed().mapIndexed { index, log -> entryOf(index.toFloat(), log.resultingCount) })
+                    }
 
-                Chart(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp)
-                        .padding(16.dp),
-                    chart = lineChart(),
-                    chartModelProducer = chartEntryModelProducer,
-                    startAxis = rememberStartAxis(),
-                    bottomAxis = rememberBottomAxis(),
-                )
-            } else {
-                Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("No data yet")
+                    Chart(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .padding(16.dp),
+                        chart = lineChart(),
+                        chartModelProducer = chartEntryModelProducer,
+                        startAxis = rememberStartAxis(),
+                        bottomAxis = rememberBottomAxis(),
+                    )
+                } else {
+                    Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text("No data yet")
+                    }
                 }
             }
 
-            HorizontalDivider()
+            item { HorizontalDivider() }
 
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(logs) { log ->
-                    LogItem(
-                        log = log,
-                        onEdit = { editingLog = log },
-                        onDelete = { viewModel.deleteLog(log.id) }
-                    )
-                }
+            items(logs) { log ->
+                LogItem(
+                    log = log,
+                    onEdit = { editingLog = log },
+                    onDelete = { viewModel.deleteLog(log.id) }
+                )
             }
         }
 
