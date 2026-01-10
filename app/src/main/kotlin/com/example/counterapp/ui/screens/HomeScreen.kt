@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -18,6 +19,10 @@ import com.example.counterapp.data.Counter
 import com.example.counterapp.ui.HomeViewModel
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +53,9 @@ fun HomeScreen(
                 CounterItem(
                     counter = counter,
                     onIncrement = { viewModel.incrementCounter(counter, it) },
+                    onUpdateIncrementAmount = { newAmount ->
+                        viewModel.updateCounter(counter.copy(lastIncrementAmount = newAmount))
+                    },
                     onEdit = { editingCounter = counter },
                     onViewHistory = { onNavigateToHistory(counter.id) }
                 )
@@ -83,6 +91,7 @@ fun HomeScreen(
 fun CounterItem(
     counter: Counter,
     onIncrement: (Int) -> Unit,
+    onUpdateIncrementAmount: (Int) -> Unit,
     onEdit: () -> Unit,
     onViewHistory: () -> Unit
 ) {
@@ -119,20 +128,72 @@ fun CounterItem(
                     fontWeight = FontWeight.Bold
                 ),
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(vertical = 32.dp)
+                modifier = Modifier.padding(vertical = 24.dp)
             )
 
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp),
-                onClick = { onIncrement(counter.lastIncrementAmount) },
-                shape = RoundedCornerShape(16.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "+ ${counter.lastIncrementAmount}",
-                    style = MaterialTheme.typography.headlineMedium
-                )
+                // Step Control on the Left
+                Box(
+                    modifier = Modifier.weight(0.4f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Step",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { onUpdateIncrementAmount((counter.lastIncrementAmount - 1).coerceAtLeast(1)) },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "Decrease Step", modifier = Modifier.size(20.dp))
+                            }
+                            
+                            BasicTextField(
+                                value = counter.lastIncrementAmount.toString(),
+                                onValueChange = { newValue ->
+                                    val amount = newValue.filter { it.isDigit() }.toIntOrNull() ?: 1
+                                    onUpdateIncrementAmount(amount)
+                                },
+                                modifier = Modifier.width(60.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.headlineLarge.copy(
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+
+                            IconButton(
+                                onClick = { onUpdateIncrementAmount(counter.lastIncrementAmount + 1) },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Increase Step", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+
+                // Main Increment Button on the Right
+                Button(
+                    modifier = Modifier
+                        .weight(0.6f)
+                        .height(64.dp),
+                    onClick = { onIncrement(counter.lastIncrementAmount) },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "+",
+                        style = MaterialTheme.typography.headlineLarge
+                    )
+                }
             }
         }
     }
