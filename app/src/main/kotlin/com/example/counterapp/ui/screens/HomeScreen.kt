@@ -37,7 +37,6 @@ fun HomeScreen(
     var editingCounter by remember { mutableStateOf<Counter?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Counter App") }) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Counter")
