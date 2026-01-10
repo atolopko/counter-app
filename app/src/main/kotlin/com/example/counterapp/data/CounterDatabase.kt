@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Counter::class, EventLog::class], version = 1, exportSchema = false)
+@Database(entities = [Counter::class, EventLog::class], version = 2, exportSchema = false)
 abstract class CounterDatabase : RoomDatabase() {
     abstract fun counterDao(): CounterDao
     abstract fun eventLogDao(): EventLogDao
@@ -20,7 +20,9 @@ abstract class CounterDatabase : RoomDatabase() {
                     context.applicationContext,
                     CounterDatabase::class.java,
                     "counter_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

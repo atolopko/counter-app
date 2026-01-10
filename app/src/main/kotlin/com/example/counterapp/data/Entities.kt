@@ -8,7 +8,8 @@ data class Counter(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val currentCount: Int = 0,
-    val lastIncrementAmount: Int = 10
+    val lastIncrementAmount: Int = 10,
+    val isExpanded: Boolean = true
 )
 
 @Entity(tableName = "event_logs")

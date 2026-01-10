@@ -5,14 +5,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -59,7 +60,8 @@ fun HomeScreen(
                     },
                     onUndo = { viewModel.undoLastIncrement(counter) },
                     onEdit = { editingCounter = counter },
-                    onViewHistory = { onNavigateToHistory(counter.id) }
+                    onViewHistory = { onNavigateToHistory(counter.id) },
+                    onToggleExpand = { viewModel.updateCounter(counter.copy(isExpanded = it)) }
                 )
             }
         }
@@ -96,7 +98,8 @@ fun CounterItem(
     onUpdateIncrementAmount: (Int) -> Unit,
     onUndo: () -> Unit,
     onEdit: () -> Unit,
-    onViewHistory: () -> Unit
+    onViewHistory: () -> Unit,
+    onToggleExpand: (Boolean) -> Unit
 ) {
     var showUndoConfirmation by remember { mutableStateOf(false) }
 
@@ -125,19 +128,40 @@ fun CounterItem(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand(!counter.isExpanded) },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = counter.name,
-                    style = MaterialTheme.typography.titleLarge,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
-                )
+                ) {
+                    Icon(
+                        if (counter.isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (counter.isExpanded) "Collapse" else "Expand",
+                        modifier = Modifier.padding(end = 8.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Column {
+                        Text(
+                            text = counter.name,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        if (!counter.isExpanded) {
+                            Text(
+                                text = "Count: ${counter.currentCount}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
                 Row {
                     IconButton(onClick = { showUndoConfirmation = true }) {
                         Icon(Icons.Default.Undo, contentDescription = "Undo")
@@ -151,77 +175,88 @@ fun CounterItem(
                 }
             }
             
-            Text(
-                text = "${counter.currentCount}",
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(vertical = 24.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            AnimatedVisibility(
+                visible = counter.isExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
             ) {
-                // Step Control on the Left
-                Box(
-                    modifier = Modifier.weight(0.4f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Step",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { onUpdateIncrementAmount((counter.lastIncrementAmount - 1).coerceAtLeast(1)) },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Decrease Step", modifier = Modifier.size(20.dp))
-                            }
-                            
-                            BasicTextField(
-                                value = counter.lastIncrementAmount.toString(),
-                                onValueChange = { newValue ->
-                                    val amount = newValue.filter { it.isDigit() }.toIntOrNull() ?: 1
-                                    onUpdateIncrementAmount(amount)
-                                },
-                                modifier = Modifier.width(60.dp),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.headlineLarge.copy(
-                                    textAlign = TextAlign.Center,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-
-                            IconButton(
-                                onClick = { onUpdateIncrementAmount(counter.lastIncrementAmount + 1) },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase Step", modifier = Modifier.size(20.dp))
-                            }
-                        }
-                    }
-                }
-
-                // Main Increment Button on the Right
-                Button(
-                    modifier = Modifier
-                        .weight(0.6f)
-                        .height(64.dp),
-                    onClick = { onIncrement(counter.lastIncrementAmount) },
-                    shape = RoundedCornerShape(12.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
                 ) {
                     Text(
-                        text = "+",
-                        style = MaterialTheme.typography.headlineLarge
+                        text = "${counter.currentCount}",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(vertical = 12.dp)
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Step Control on the Left
+                        Box(
+                            modifier = Modifier.weight(0.4f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Step",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { onUpdateIncrementAmount((counter.lastIncrementAmount - 1).coerceAtLeast(1)) },
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(Icons.Default.Remove, contentDescription = "Decrease Step", modifier = Modifier.size(20.dp))
+                                    }
+                                    
+                                    BasicTextField(
+                                        value = counter.lastIncrementAmount.toString(),
+                                        onValueChange = { newValue ->
+                                            val amount = newValue.filter { it.isDigit() }.toIntOrNull() ?: 1
+                                            onUpdateIncrementAmount(amount)
+                                        },
+                                        modifier = Modifier.width(60.dp),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        textStyle = MaterialTheme.typography.headlineLarge.copy(
+                                            textAlign = TextAlign.Center,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+
+                                    IconButton(
+                                        onClick = { onUpdateIncrementAmount(counter.lastIncrementAmount + 1) },
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Increase Step", modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                            }
+                        }
+
+                        // Main Increment Button on the Right
+                        Button(
+                            modifier = Modifier
+                                .weight(0.6f)
+                                .height(64.dp),
+                            onClick = { onIncrement(counter.lastIncrementAmount) },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "+",
+                                style = MaterialTheme.typography.headlineLarge
+                            )
+                        }
+                    }
                 }
             }
         }
