@@ -159,7 +159,17 @@ fun CounterItem(
                         }
                     }
                 }
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!counter.isExpanded) {
+                        Button(
+                            onClick = { onIncrement(counter.lastIncrementAmount) },
+                            contentPadding = PaddingValues(horizontal = 12.dp),
+                            modifier = Modifier.height(36.dp).padding(end = 4.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("+${counter.lastIncrementAmount}", style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
                     IconButton(onClick = { showUndoConfirmation = true }) {
                         Icon(Icons.Default.Undo, contentDescription = "Undo")
                     }
