@@ -1,4 +1,4 @@
-# Android Counter App
+# Count It!
 
 A native Android application built with Jetpack Compose, Room, and Vico for tracking events and visualizing history.
 
@@ -35,8 +35,26 @@ A native Android application built with Jetpack Compose, Room, and Vico for trac
     - Tap the increment button (+10 by default) to record an event.
     - Click the **History** (clock icon) to view the graph and log list.
 
+## Deploying to a Physical Phone
+
+There are two main ways to get this app onto your real device:
+
+### Option 1: Direct Install (via ADB/USB)
+This is the standard developer method:
+1. **Enable Developer Options**: On your phone, go to **Settings > About Phone** and tap **Build Number** 7 times.
+2. **Enable USB Debugging**: Go to **Settings > Developer Options** and turn on **USB Debugging**.
+3. **Connect to Mac**: Plug your phone into your computer via USB.
+4. **Run from Android Studio**: Select your phone in the device dropdown list and click the green **Run** button.
+
+### Option 2: Generate an APK (for manual transfer)
+If you want to send the app file to your phone without a cable:
+1. **Build APK**: In Android Studio, go to **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+2. **Locate File**: Once the build finishes, click the **Locate** notification. The file will be at `app/build/outputs/apk/debug/app-debug.apk`.
+3. **Transfer**: Send this `.apk` file to your phone via email, Google Drive, or Slack.
+4. **Install**: Open the file on your phone. You may need to grant permission to "Install from Unknown Sources" in your phone's browser or file manager.
+
 ## Testing
-To run unit tests (if applicable):
+To run unit tests:
 ```bash
 ./gradlew test
 ```
