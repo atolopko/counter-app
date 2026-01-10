@@ -31,6 +31,12 @@ class HomeViewModel(private val repository: CounterRepository) : ViewModel() {
         }
     }
 
+    fun undoLastIncrement(counter: Counter) {
+        viewModelScope.launch {
+            repository.undoLastIncrement(counter)
+        }
+    }
+
     fun deleteCounter(counter: Counter) {
         viewModelScope.launch {
             repository.deleteCounter(counter)

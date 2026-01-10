@@ -1,28 +1,25 @@
 package com.example.counterapp.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -46,6 +43,7 @@ fun HistoryScreen(
 ) {
     val counter by viewModel.counter.collectAsState()
     val logs by viewModel.logs.collectAsState()
+    var editingLog by remember { mutableStateOf<EventLog?>(null) }
 
     Scaffold(
         topBar = {
@@ -90,21 +88,169 @@ fun HistoryScreen(
 
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(logs) { log ->
-                    LogItem(log)
+                    LogItem(
+                        log = log,
+                        onEdit = { editingLog = log },
+                        onDelete = { viewModel.deleteLog(log.id) }
+                    )
                 }
             }
+        }
+
+        if (editingLog != null) {
+            EditLogDialog(
+                log = editingLog!!,
+                onDismiss = { editingLog = null },
+                onConfirm = { amount, timestamp ->
+                    if (amount == -1 && timestamp == -1L) {
+                        viewModel.deleteLog(editingLog!!.id)
+                    } else {
+                        viewModel.updateLog(editingLog!!.id, amount, timestamp)
+                    }
+                    editingLog = null
+                }
+            )
         }
     }
 }
 
 @Composable
-fun LogItem(log: EventLog) {
+fun EditLogDialog(
+    log: EventLog,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Long) -> Unit
+) {
+    var amountText by remember { mutableStateOf(log.amountChanged.toString()) }
+    val sdf = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+    var timestampText by remember { mutableStateOf(sdf.format(Date(log.timestamp))) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Entry") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Amount Changed") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextField(
+                    value = timestampText,
+                    onValueChange = { timestampText = it },
+                    label = { Text("Timestamp (yyyy-MM-dd HH:mm)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = error != null
+                )
+                if (error != null) {
+                    Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                
+                var showDeleteConfirm by remember { mutableStateOf(false) }
+                
+                if (!showDeleteConfirm) {
+                    TextButton(
+                        onClick = { showDeleteConfirm = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Delete this entry")
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Are you sure?", color = MaterialTheme.colorScheme.error)
+                        Row {
+                            TextButton(onClick = { showDeleteConfirm = false }) {
+                                Text("No")
+                            }
+                            TextButton(
+                                onClick = { 
+                                    onConfirm(-1, -1) // Special signal for delete
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Yes, Delete")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val amount = amountText.toIntOrNull()
+                val date = try { sdf.parse(timestampText) } catch (e: Exception) { null }
+                
+                if (amount == null) {
+                    error = "Invalid amount"
+                } else if (date == null) {
+                    error = "Invalid date format"
+                } else {
+                    onConfirm(amount, date.time)
+                }
+            }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+fun LogItem(log: EventLog, onEdit: () -> Unit, onDelete: () -> Unit) {
     val sdf = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }
     val dateString = remember(log.timestamp) { sdf.format(Date(log.timestamp)) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete entry?") },
+            text = { Text("Are you sure you want to delete this entry? The total count will be recalculated.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     ListItem(
         headlineContent = { Text("Result: ${log.resultingCount}") },
         supportingContent = { Text("Change: ${if (log.amountChanged > 0) "+" else ""}${log.amountChanged}") },
-        trailingContent = { Text(dateString) }
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(dateString, modifier = Modifier.padding(end = 8.dp))
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit Entry")
+                }
+                IconButton(onClick = { showDeleteConfirm = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete Entry", tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
     )
 }

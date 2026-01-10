@@ -23,12 +23,27 @@ interface CounterDao {
 
 @Dao
 interface EventLogDao {
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp ASC")
+    fun getLogsForCounterAsc(counterId: Long): Flow<List<EventLog>>
+
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp ASC")
+    suspend fun getAllLogsForCounterAsc(counterId: Long): List<EventLog>
+
     @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC")
     fun getLogsForCounter(counterId: Long): Flow<List<EventLog>>
 
     @Insert
     suspend fun insertLog(log: EventLog)
+
+    @Update
+    suspend fun updateLog(log: EventLog)
     
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestLogForCounter(counterId: Long): EventLog?
+
+    @Delete
+    suspend fun deleteEventLog(log: EventLog)
+
     @Query("DELETE FROM event_logs WHERE counterId = :counterId")
     suspend fun deleteLogsForCounter(counterId: Long)
 }

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,6 +57,7 @@ fun HomeScreen(
                     onUpdateIncrementAmount = { newAmount ->
                         viewModel.updateCounter(counter.copy(lastIncrementAmount = newAmount))
                     },
+                    onUndo = { viewModel.undoLastIncrement(counter) },
                     onEdit = { editingCounter = counter },
                     onViewHistory = { onNavigateToHistory(counter.id) }
                 )
@@ -92,9 +94,33 @@ fun CounterItem(
     counter: Counter,
     onIncrement: (Int) -> Unit,
     onUpdateIncrementAmount: (Int) -> Unit,
+    onUndo: () -> Unit,
     onEdit: () -> Unit,
     onViewHistory: () -> Unit
 ) {
+    var showUndoConfirmation by remember { mutableStateOf(false) }
+
+    if (showUndoConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showUndoConfirmation = false },
+            title = { Text("Undo last entry?") },
+            text = { Text("This will revert the last count update for \"${counter.name}\".") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onUndo()
+                    showUndoConfirmation = false
+                }) {
+                    Text("Undo")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUndoConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -113,6 +139,9 @@ fun CounterItem(
                     modifier = Modifier.weight(1f)
                 )
                 Row {
+                    IconButton(onClick = { showUndoConfirmation = true }) {
+                        Icon(Icons.Default.Undo, contentDescription = "Undo")
+                    }
                     IconButton(onClick = onViewHistory) {
                         Icon(Icons.Default.History, contentDescription = "History")
                     }

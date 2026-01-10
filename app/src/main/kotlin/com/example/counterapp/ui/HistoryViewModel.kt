@@ -19,4 +19,16 @@ class HistoryViewModel(
 
     val logs: StateFlow<List<EventLog>> = repository.getLogsForCounter(counterId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun updateLog(logId: Long, newAmount: Int, newTimestamp: Long) {
+        viewModelScope.launch {
+            repository.updateLogAndRecalculate(counterId, logId, newAmount, newTimestamp)
+        }
+    }
+
+    fun deleteLog(logId: Long) {
+        viewModelScope.launch {
+            repository.deleteLogAndRecalculate(counterId, logId)
+        }
+    }
 }

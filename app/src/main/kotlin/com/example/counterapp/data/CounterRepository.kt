@@ -40,4 +40,67 @@ class CounterRepository(
     }
 
     suspend fun getCounterById(id: Long): Counter? = counterDao.getCounterById(id)
+
+    suspend fun undoLastIncrement(counter: Counter) {
+        val latestLog = eventLogDao.getLatestLogForCounter(counter.id)
+        if (latestLog != null) {
+            val newCount = counter.currentCount - latestLog.amountChanged
+            val updatedCounter = counter.copy(currentCount = newCount)
+            counterDao.updateCounter(updatedCounter)
+            eventLogDao.deleteEventLog(latestLog)
+        }
+    }
+
+    suspend fun updateLogAndRecalculate(counterId: Long, logId: Long, newAmount: Int, newTimestamp: Long) {
+        val logs = eventLogDao.getAllLogsForCounterAsc(counterId).toMutableList()
+        val logIndex = logs.indexOfFirst { it.id == logId }
+        if (logIndex != -1) {
+            // Update the target log
+            logs[logIndex] = logs[logIndex].copy(amountChanged = newAmount, timestamp = newTimestamp)
+            
+            // Re-sort in case timestamp changed
+            logs.sortBy { it.timestamp }
+            
+            // Recalculate resulting counts
+            var runningCount = 0
+            val updatedLogs = logs.map { log ->
+                runningCount += log.amountChanged
+                log.copy(resultingCount = runningCount)
+            }
+            
+            // Update logs in database
+            updatedLogs.forEach { eventLogDao.updateLog(it) }
+            
+            // Update counter total
+            val counter = counterDao.getCounterById(counterId)
+            if (counter != null) {
+                counterDao.updateCounter(counter.copy(currentCount = runningCount))
+            }
+        }
+    }
+    suspend fun deleteLogAndRecalculate(counterId: Long, logId: Long) {
+        val logs = eventLogDao.getAllLogsForCounterAsc(counterId).toMutableList()
+        val logIndex = logs.indexOfFirst { it.id == logId }
+        if (logIndex != -1) {
+            val logToDelete = logs[logIndex]
+            eventLogDao.deleteEventLog(logToDelete)
+            logs.removeAt(logIndex)
+            
+            // Recalculate resulting counts
+            var runningCount = 0
+            val updatedLogs = logs.map { log ->
+                runningCount += log.amountChanged
+                log.copy(resultingCount = runningCount)
+            }
+            
+            // Update logs in database to fix resultingCounts
+            updatedLogs.forEach { eventLogDao.updateLog(it) }
+            
+            // Update counter total
+            val counter = counterDao.getCounterById(counterId)
+            if (counter != null) {
+                counterDao.updateCounter(counter.copy(currentCount = runningCount))
+            }
+        }
+    }
 }
