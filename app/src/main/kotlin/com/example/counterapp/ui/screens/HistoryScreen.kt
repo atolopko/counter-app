@@ -1,5 +1,6 @@
 package com.example.counterapp.ui.screens
 
+import android.graphics.Paint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,23 +13,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.counterapp.data.EventLog
 import com.example.counterapp.ui.HistoryViewModel
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.component.shapeComponent
+import com.patrykandpatrick.vico.compose.component.textComponent
+import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
+import com.patrykandpatrick.vico.core.axis.AxisPosition
+import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
+import com.patrykandpatrick.vico.core.chart.line.LineChart.LineSpec
+import com.patrykandpatrick.vico.core.component.shape.Shapes
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
 import java.text.SimpleDateFormat
@@ -66,7 +75,26 @@ fun HistoryScreen(
                 if (logs.isNotEmpty()) {
                     val chartEntryModelProducer = remember { ChartEntryModelProducer() }
                     LaunchedEffect(logs) {
-                        chartEntryModelProducer.setEntries(logs.reversed().mapIndexed { index, log -> entryOf(index.toFloat(), log.resultingCount) })
+                        val sortedLogs = logs.sortedBy { it.timestamp }
+                        chartEntryModelProducer.setEntries(
+                            sortedLogs.mapIndexed { index, log ->
+                                entryOf(index.toFloat(), log.resultingCount.toFloat())
+                            }
+                        )
+                    }
+
+                    val xAxisValueFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
+                        val index = value.toInt()
+                        if (index in logs.indices) {
+                            val date = Date(logs.sortedBy { it.timestamp }[index].timestamp)
+                            SimpleDateFormat("MM/dd", Locale.getDefault()).format(date)
+                        } else {
+                            ""
+                        }
+                    }
+
+                    val yAxisValueFormatter = AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                        value.toInt().toString()
                     }
 
                     Chart(
@@ -74,10 +102,29 @@ fun HistoryScreen(
                             .fillMaxWidth()
                             .height(250.dp)
                             .padding(16.dp),
-                        chart = lineChart(),
+                        chart = lineChart(
+                            lines = listOf(
+                                LineSpec(
+                                    point = shapeComponent(Shapes.pillShape, MaterialTheme.colorScheme.primary),
+                                    pointSizeDp = 4f
+                                )
+                            )
+                        ),
                         chartModelProducer = chartEntryModelProducer,
-                        startAxis = rememberStartAxis(),
-                        bottomAxis = rememberBottomAxis(),
+                        startAxis = rememberStartAxis(
+                            valueFormatter = yAxisValueFormatter,
+                            itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 6)
+                        ),
+                        bottomAxis = rememberBottomAxis(
+                            label = textComponent(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textSize = 8.sp,
+                                textAlign = Paint.Align.CENTER
+                            ),
+                            labelRotationDegrees = -45f,
+                            valueFormatter = xAxisValueFormatter,
+                            itemPlacer = AxisItemPlacer.Horizontal.default(spacing = 3)
+                        ),
                     )
                 } else {
                     Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
