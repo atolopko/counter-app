@@ -73,9 +73,10 @@ fun HistoryScreen(
         ) {
             item {
                 if (logs.isNotEmpty()) {
+                    val sortedLogs = remember(logs) { logs.sortedBy { it.timestamp } }
                     val chartEntryModelProducer = remember { ChartEntryModelProducer() }
-                    LaunchedEffect(logs) {
-                        val sortedLogs = logs.sortedBy { it.timestamp }
+                    
+                    LaunchedEffect(sortedLogs) {
                         chartEntryModelProducer.setEntries(
                             sortedLogs.mapIndexed { index, log ->
                                 entryOf(index.toFloat(), log.resultingCount.toFloat())
@@ -83,18 +84,22 @@ fun HistoryScreen(
                         )
                     }
 
-                    val xAxisValueFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
-                        val index = value.toInt()
-                        if (index in logs.indices) {
-                            val date = Date(logs.sortedBy { it.timestamp }[index].timestamp)
-                            SimpleDateFormat("MM/dd", Locale.getDefault()).format(date)
-                        } else {
-                            ""
+                    val xAxisValueFormatter = remember(sortedLogs) {
+                        AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
+                            val index = value.toInt()
+                            if (index in sortedLogs.indices) {
+                                val date = Date(sortedLogs[index].timestamp)
+                                SimpleDateFormat("MM/dd", Locale.getDefault()).format(date)
+                            } else {
+                                ""
+                            }
                         }
                     }
 
-                    val yAxisValueFormatter = AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
-                        value.toInt().toString()
+                    val yAxisValueFormatter = remember {
+                        AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                            value.toInt().toString()
+                        }
                     }
 
                     Chart(
@@ -126,7 +131,8 @@ fun HistoryScreen(
                             itemPlacer = AxisItemPlacer.Horizontal.default(spacing = 3)
                         ),
                     )
-                } else {
+                }
+ else {
                     Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text("No data yet")
                     }

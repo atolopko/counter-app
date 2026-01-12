@@ -37,7 +37,10 @@ interface EventLogDao {
 
     @Update
     suspend fun updateLog(log: EventLog)
-    
+
+    @Update
+    suspend fun updateLogs(logs: List<EventLog>)
+
     @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestLogForCounter(counterId: Long): EventLog?
 
@@ -46,4 +49,17 @@ interface EventLogDao {
 
     @Query("DELETE FROM event_logs WHERE counterId = :counterId")
     suspend fun deleteLogsForCounter(counterId: Long)
+
+    @Transaction
+    suspend fun updateLogsAndCounter(logs: List<EventLog>, counter: Counter, counterDao: CounterDao) {
+        updateLogs(logs)
+        counterDao.updateCounter(counter)
+    }
+
+    @Transaction
+    suspend fun deleteLogAndUpdateCounter(log: EventLog, logs: List<EventLog>, counter: Counter, counterDao: CounterDao) {
+        deleteEventLog(log)
+        updateLogs(logs)
+        counterDao.updateCounter(counter)
+    }
 }

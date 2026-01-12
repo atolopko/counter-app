@@ -68,13 +68,10 @@ class CounterRepository(
                 log.copy(resultingCount = runningCount)
             }
             
-            // Update logs in database
-            updatedLogs.forEach { eventLogDao.updateLog(it) }
-            
-            // Update counter total
+            // Update logs in database and counter total atomically
             val counter = counterDao.getCounterById(counterId)
             if (counter != null) {
-                counterDao.updateCounter(counter.copy(currentCount = runningCount))
+                eventLogDao.updateLogsAndCounter(updatedLogs, counter.copy(currentCount = runningCount), counterDao)
             }
         }
     }
@@ -83,7 +80,6 @@ class CounterRepository(
         val logIndex = logs.indexOfFirst { it.id == logId }
         if (logIndex != -1) {
             val logToDelete = logs[logIndex]
-            eventLogDao.deleteEventLog(logToDelete)
             logs.removeAt(logIndex)
             
             // Recalculate resulting counts
@@ -93,13 +89,15 @@ class CounterRepository(
                 log.copy(resultingCount = runningCount)
             }
             
-            // Update logs in database to fix resultingCounts
-            updatedLogs.forEach { eventLogDao.updateLog(it) }
-            
-            // Update counter total
+            // Delete the log, update other logs and counter total atomically
             val counter = counterDao.getCounterById(counterId)
             if (counter != null) {
-                counterDao.updateCounter(counter.copy(currentCount = runningCount))
+                eventLogDao.deleteLogAndUpdateCounter(
+                    logToDelete,
+                    updatedLogs, 
+                    counter.copy(currentCount = runningCount), 
+                    counterDao
+                )
             }
         }
     }
