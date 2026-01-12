@@ -74,14 +74,19 @@ fun HistoryScreen(
             item {
                 if (logs.isNotEmpty()) {
                     val sortedLogs = remember(logs) { logs.sortedBy { it.timestamp } }
-                    val chartEntryModelProducer = remember { ChartEntryModelProducer() }
                     
-                    LaunchedEffect(sortedLogs) {
-                        chartEntryModelProducer.setEntries(
-                            sortedLogs.mapIndexed { index, log ->
-                                entryOf(index.toFloat(), log.resultingCount.toFloat())
-                            }
-                        )
+                    // Pre-calculate entries to initialize the producer correctly
+                    val initialEntries = remember(sortedLogs) {
+                        sortedLogs.mapIndexed { index, log ->
+                            entryOf(index.toFloat(), log.resultingCount.toFloat())
+                        }
+                    }
+                    
+                    val chartEntryModelProducer = remember { ChartEntryModelProducer(initialEntries) }
+                    
+                    // Update the producer when data changes
+                    LaunchedEffect(initialEntries) {
+                        chartEntryModelProducer.setEntries(initialEntries)
                     }
 
                     val xAxisValueFormatter = remember(sortedLogs) {
