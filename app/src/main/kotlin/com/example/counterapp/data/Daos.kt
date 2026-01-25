@@ -47,6 +47,12 @@ interface EventLogDao {
     @Update
     suspend fun updateLogs(logs: List<EventLog>)
 
+    @Query("SELECT * FROM event_logs WHERE timestamp IN (SELECT MAX(timestamp) FROM event_logs GROUP BY counterId)")
+    fun getLatestLogsForAllCounters(): Flow<List<EventLog>>
+
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC LIMIT 1")
+    fun getLatestLogFlow(counterId: Long): Flow<EventLog?>
+
     @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestLogForCounter(counterId: Long): EventLog?
 

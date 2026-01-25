@@ -25,6 +25,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.example.counterapp.data.EventLog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,6 +138,7 @@ fun HomeScreen(
                     CounterItem(
                         counter = model.counter,
                         addedToday = model.addedToday,
+                        latestLog = model.latestLog,
                         onIncrement = { viewModel.incrementCounter(model.counter, it) },
                         onUpdateIncrementAmount = { newAmount ->
                             viewModel.updateCounter(model.counter.copy(lastIncrementAmount = newAmount))
@@ -261,6 +266,7 @@ fun ImportDialog(
 fun CounterItem(
     counter: Counter,
     addedToday: Int,
+    latestLog: EventLog?,
     onIncrement: (Int) -> Unit,
     onUpdateIncrementAmount: (Int) -> Unit,
     onUndo: () -> Unit,
@@ -271,10 +277,18 @@ fun CounterItem(
     var showUndoConfirmation by remember { mutableStateOf(false) }
 
     if (showUndoConfirmation) {
+        val detailText = if (latestLog != null) {
+            val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+            val dateStr = sdf.format(Date(latestLog.timestamp))
+            "This will revert the last entry of ${if (latestLog.amountChanged > 0) "+" else ""}${latestLog.amountChanged} from $dateStr."
+        } else {
+            "This will revert the last count update for \"${counter.name}\"."
+        }
+
         AlertDialog(
             onDismissRequest = { showUndoConfirmation = false },
             title = { Text("Undo last entry?") },
-            text = { Text("This will revert the last count update for \"${counter.name}\".") },
+            text = { Text(detailText) },
             confirmButton = {
                 TextButton(onClick = {
                     onUndo()

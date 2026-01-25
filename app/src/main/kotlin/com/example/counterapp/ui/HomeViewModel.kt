@@ -11,10 +11,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import com.example.counterapp.data.EventLog
 
 data class CounterUiModel(
     val counter: Counter,
-    val addedToday: Int
+    val addedToday: Int,
+    val latestLog: EventLog? = null
 )
 
 sealed class ImportStatus {
@@ -35,13 +37,17 @@ class HomeViewModel(private val repository: CounterRepository) : ViewModel() {
 
     val counters: StateFlow<List<CounterUiModel>> = combine(
         repository.allCounters,
-        repository.getTodaySums(getMidnightToday())
-    ) { allCounters, todaySums ->
+        repository.getTodaySums(getMidnightToday()),
+        repository.latestLogsForAllCounters
+    ) { allCounters, todaySums, latestLogs ->
         val sumsMap = todaySums.associate { it.counterId to it.total }
+        val logsMap = latestLogs.associateBy { it.counterId }
+        
         allCounters.map { counter ->
             CounterUiModel(
                 counter = counter,
-                addedToday = sumsMap[counter.id] ?: 0
+                addedToday = sumsMap[counter.id] ?: 0,
+                latestLog = logsMap[counter.id]
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
