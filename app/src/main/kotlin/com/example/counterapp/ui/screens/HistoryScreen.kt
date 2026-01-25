@@ -22,15 +22,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.toArgb
+import java.time.format.DateTimeFormatter
 import com.example.counterapp.data.EventLog
+import com.example.counterapp.ui.HistoryRange
 import com.example.counterapp.ui.HistoryViewModel
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
+import com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec
+import com.patrykandpatrick.vico.compose.chart.column.columnChart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.component.lineComponent
 import com.patrykandpatrick.vico.compose.component.shapeComponent
 import com.patrykandpatrick.vico.compose.component.textComponent
 import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
@@ -38,6 +45,7 @@ import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.chart.line.LineChart.LineSpec
 import com.patrykandpatrick.vico.core.component.shape.Shapes
+import com.patrykandpatrick.vico.core.chart.layout.HorizontalLayout
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
 import java.text.SimpleDateFormat
@@ -52,6 +60,8 @@ fun HistoryScreen(
 ) {
     val counter by viewModel.counter.collectAsState()
     val logs by viewModel.logs.collectAsState()
+    val dailyStats by viewModel.dailyStats.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
     var editingLog by remember { mutableStateOf<EventLog?>(null) }
 
     Scaffold(
@@ -72,74 +82,95 @@ fun HistoryScreen(
                 .padding(padding)
         ) {
             item {
-                if (logs.isNotEmpty()) {
-                    val sortedLogs = remember(logs) { logs.sortedBy { it.timestamp } }
-                    
-                    // Pre-calculate entries to initialize the producer correctly
-                    val initialEntries = remember(sortedLogs) {
-                        sortedLogs.mapIndexed { index, log ->
-                            entryOf(index.toFloat(), log.resultingCount.toFloat())
-                        }
-                    }
-                    
-                    val chartEntryModelProducer = remember { ChartEntryModelProducer(initialEntries) }
-                    
-                    // Update the producer when data changes
-                    LaunchedEffect(initialEntries) {
-                        chartEntryModelProducer.setEntries(initialEntries)
-                    }
-
-                    val xAxisValueFormatter = remember(sortedLogs) {
-                        AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
-                            val index = value.toInt()
-                            if (index in sortedLogs.indices) {
-                                val date = Date(sortedLogs[index].timestamp)
-                                SimpleDateFormat("MM/dd", Locale.getDefault()).format(date)
-                            } else {
-                                ""
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        HistoryRange.values().forEachIndexed { index, range ->
+                            val label = when (range) {
+                                HistoryRange.LAST_7_DAYS -> "7d"
+                                HistoryRange.LAST_30_DAYS -> "30d"
+                                HistoryRange.YTD -> "YTD"
+                                HistoryRange.ALL -> "All"
+                            }
+                            SegmentedButton(
+                                selected = selectedRange == range,
+                                onClick = { viewModel.setRange(range) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = HistoryRange.values().size)
+                            ) {
+                                Text(label, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
-
-                    val yAxisValueFormatter = remember {
-                        AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
-                            value.toInt().toString()
+                    
+                    if (dailyStats.isNotEmpty()) {
+                        val chartEntryModelProducer = remember { ChartEntryModelProducer() }
+                        
+                        // Update the producer when data changes
+                        LaunchedEffect(dailyStats) {
+                            val entries = dailyStats.mapIndexed { index, stat ->
+                                entryOf(index.toFloat(), stat.count.toFloat())
+                            }
+                            chartEntryModelProducer.setEntries(entries)
                         }
-                    }
-
-                    Chart(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                            .padding(16.dp),
-                        chart = lineChart(
-                            lines = listOf(
-                                LineSpec(
-                                    point = shapeComponent(Shapes.pillShape, MaterialTheme.colorScheme.primary),
-                                    pointSizeDp = 4f
+    
+                        val xAxisValueFormatter = remember(dailyStats) {
+                            val formatter = DateTimeFormatter.ofPattern("MM/dd")
+                            AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
+                                val index = value.toInt()
+                                if (index in dailyStats.indices) {
+                                    dailyStats[index].date.format(formatter)
+                                } else {
+                                    ""
+                                }
+                            }
+                        }
+    
+                        val yAxisValueFormatter = remember {
+                            AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                                value.toInt().toString()
+                            }
+                        }
+    
+                        Chart(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(250.dp)
+                                .padding(top = 16.dp),
+                            chart = columnChart(
+                                columns = listOf(
+                                    lineComponent(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = CircleShape
+                                    )
                                 )
-                            )
-                        ),
-                        chartModelProducer = chartEntryModelProducer,
-                        startAxis = rememberStartAxis(
-                            valueFormatter = yAxisValueFormatter,
-                            itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 6)
-                        ),
-                        bottomAxis = rememberBottomAxis(
-                            label = textComponent(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textSize = 8.sp,
-                                textAlign = Paint.Align.CENTER
                             ),
-                            labelRotationDegrees = -45f,
-                            valueFormatter = xAxisValueFormatter,
-                            itemPlacer = AxisItemPlacer.Horizontal.default(spacing = 3)
-                        ),
-                    )
-                }
- else {
-                    Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text("No data yet")
+                            chartModelProducer = chartEntryModelProducer,
+                            startAxis = rememberStartAxis(
+                                valueFormatter = yAxisValueFormatter,
+                                itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 6)
+                            ),
+                            bottomAxis = rememberBottomAxis(
+                                label = textComponent(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textSize = 8.sp,
+                                    textAlign = Paint.Align.CENTER
+                                ),
+                                labelRotationDegrees = -45f,
+                                valueFormatter = xAxisValueFormatter,
+                                itemPlacer = AxisItemPlacer.Horizontal.default(spacing = 2)
+                            ),
+                            horizontalLayout = HorizontalLayout.Segmented,
+                            chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
+                            isZoomEnabled = false
+                        )
+                    } else {
+                        Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("No data for this range")
+                        }
                     }
                 }
             }
