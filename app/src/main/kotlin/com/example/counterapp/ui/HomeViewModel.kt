@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.counterapp.data.Counter
 import com.example.counterapp.data.CounterRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -15,6 +16,12 @@ data class CounterUiModel(
     val counter: Counter,
     val addedToday: Int
 )
+
+sealed class ImportStatus {
+    object Idle : ImportStatus()
+    data class Success(val results: Map<String, Int>) : ImportStatus()
+    data class Error(val message: String) : ImportStatus()
+}
 
 class HomeViewModel(private val repository: CounterRepository) : ViewModel() {
     private fun getMidnightToday(): Long {
@@ -67,5 +74,23 @@ class HomeViewModel(private val repository: CounterRepository) : ViewModel() {
         viewModelScope.launch {
             repository.deleteCounter(counter)
         }
+    }
+
+    private val _importStatus = MutableStateFlow<ImportStatus>(ImportStatus.Idle)
+    val importStatus: StateFlow<ImportStatus> = _importStatus
+
+    fun importData(text: String) {
+        viewModelScope.launch {
+            try {
+                val results = repository.importFromText(text)
+                _importStatus.value = ImportStatus.Success(results)
+            } catch (e: Exception) {
+                _importStatus.value = ImportStatus.Error(e.message ?: "Unknown error occurred")
+            }
+        }
+    }
+
+    fun clearImportStatus() {
+        _importStatus.value = ImportStatus.Idle
     }
 }

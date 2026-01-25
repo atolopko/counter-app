@@ -1,6 +1,7 @@
 package com.example.counterapp.data
 
 import kotlinx.coroutines.flow.Flow
+import java.util.*
 
 class CounterRepository(
     private val counterDao: CounterDao,
@@ -103,5 +104,88 @@ class CounterRepository(
                 )
             }
         }
+    }
+
+    suspend fun importFromText(text: String): Map<String, Int> {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        var currentCounterName: String? = null
+        // Regex to identify data lines: MM/DD/YY values (space delimited)
+        val dataRegex = Regex("""^(\d{1,2}/\d{1,2}(?:/\d{2,4})?)\s+(.+)$""")
+        val calendar = Calendar.getInstance()
+        val currentYear = calendar.get(Calendar.YEAR)
+
+        val pendingData = mutableMapOf<String, MutableList<Pair<Long, Int>>>()
+        val summary = mutableMapOf<String, Int>()
+
+        for (line in lines) {
+            val match = dataRegex.find(line)
+            if (match != null) {
+                // This is a data line. If we don't have a counter name yet, we can't do anything with it.
+                val counterName = currentCounterName ?: continue
+                
+                val dateStr = match.groupValues[1]
+                val valuesStr = match.groupValues[2]
+                
+                val dateParts = dateStr.split("/")
+                val month = dateParts[0].toInt() - 1
+                val day = dateParts[1].toInt()
+                val year = if (dateParts.size > 2) {
+                    var y = dateParts[2].toInt()
+                    if (y < 100) y += 2000
+                    y
+                } else {
+                    currentYear
+                }
+                
+                calendar.set(year, month, day, 12, 0, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                val timestamp = calendar.timeInMillis
+                
+                val amounts = valuesStr.split(Regex("\\s+"))
+                    .filter { it.isNotEmpty() }
+                    .mapNotNull { it.toIntOrNull() }
+                
+                if (amounts.isNotEmpty()) {
+                    pendingData.getOrPut(counterName) { mutableListOf() }
+                        .addAll(amounts.map { timestamp to it })
+                    summary[counterName] = (summary[counterName] ?: 0) + amounts.size
+                }
+            } else {
+                // This is not a data line, so it must be a counter name.
+                currentCounterName = line
+            }
+        }
+
+        if (pendingData.isEmpty()) throw Exception("No valid data found in import text.")
+
+        // Apply imported data
+        for ((name, newEntries) in pendingData) {
+            var counter = counterDao.getCounterByName(name)
+            if (counter == null) {
+                val newId = counterDao.insertCounter(Counter(name = name))
+                counter = counterDao.getCounterById(newId)
+            }
+            
+            if (counter != null) {
+                val existingLogs = eventLogDao.getAllLogsForCounterAsc(counter.id)
+                val allEntries = (existingLogs.map { it.timestamp to it.amountChanged } + newEntries)
+                    .sortedBy { it.first }
+                
+                var runningCount = 0
+                val updatedLogs = allEntries.map { (ts, amount) ->
+                    runningCount += amount
+                    EventLog(
+                        counterId = counter!!.id,
+                        timestamp = ts,
+                        amountChanged = amount,
+                        resultingCount = runningCount
+                    )
+                }
+                
+                // Clear and replace logs for this counter to ensure consistency
+                eventLogDao.replaceLogsAndUpdateCounter(updatedLogs, counter.id, counter.copy(currentCount = runningCount), counterDao)
+            }
+        }
+        return summary
     }
 }

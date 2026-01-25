@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.example.counterapp.data.Counter
 import com.example.counterapp.ui.HomeViewModel
 import com.example.counterapp.ui.CounterUiModel
+import com.example.counterapp.ui.ImportStatus
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -32,36 +33,117 @@ fun HomeScreen(
     onNavigateToHistory: (Long) -> Unit
 ) {
     val counters by viewModel.counters.collectAsState()
+    val importStatus by viewModel.importStatus.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
     var editingCounter by remember { mutableStateOf<Counter?>(null) }
 
     Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Count It!") }
+            )
+        },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Counter")
+            var showFabMenu by remember { mutableStateOf(false) }
+            Box {
+                FloatingActionButton(onClick = { showFabMenu = true }) {
+                    Icon(if (showFabMenu) Icons.Default.Close else Icons.Default.Add, contentDescription = "Add")
+                }
+                DropdownMenu(
+                    expanded = showFabMenu,
+                    onDismissRequest = { showFabMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("New Counter") },
+                        onClick = {
+                            showFabMenu = false
+                            showAddDialog = true
+                        },
+                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Import Data") },
+                        onClick = {
+                            showFabMenu = false
+                            showImportDialog = true
+                        },
+                        leadingIcon = { Icon(Icons.Default.FileOpen, contentDescription = null) }
+                    )
+                }
             }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(counters) { model ->
-                CounterItem(
-                    counter = model.counter,
-                    addedToday = model.addedToday,
-                    onIncrement = { viewModel.incrementCounter(model.counter, it) },
-                    onUpdateIncrementAmount = { newAmount ->
-                        viewModel.updateCounter(model.counter.copy(lastIncrementAmount = newAmount))
-                    },
-                    onUndo = { viewModel.undoLastIncrement(model.counter) },
-                    onEdit = { editingCounter = model.counter },
-                    onViewHistory = { onNavigateToHistory(model.counter.id) },
-                    onToggleExpand = { viewModel.updateCounter(model.counter.copy(isExpanded = it)) }
-                )
+        if (counters.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Analytics,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Ready to count?",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Start fresh or bring in your history.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(32.dp))
+                    Button(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Create First Counter")
+                    }
+                    OutlinedButton(
+                        onClick = { showImportDialog = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    ) {
+                        Icon(Icons.Default.FileOpen, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Import Historical Data")
+                    }
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(counters) { model ->
+                    CounterItem(
+                        counter = model.counter,
+                        addedToday = model.addedToday,
+                        onIncrement = { viewModel.incrementCounter(model.counter, it) },
+                        onUpdateIncrementAmount = { newAmount ->
+                            viewModel.updateCounter(model.counter.copy(lastIncrementAmount = newAmount))
+                        },
+                        onUndo = { viewModel.undoLastIncrement(model.counter) },
+                        onEdit = { editingCounter = model.counter },
+                        onViewHistory = { onNavigateToHistory(model.counter.id) },
+                        onToggleExpand = { viewModel.updateCounter(model.counter.copy(isExpanded = it)) }
+                    )
+                }
             }
         }
     }
@@ -85,9 +167,94 @@ fun HomeScreen(
             onConfirm = { name, amount ->
                 viewModel.updateCounter(editingCounter!!.copy(name = name, lastIncrementAmount = amount))
                 editingCounter = null
+            },
+            onDelete = {
+                viewModel.deleteCounter(editingCounter!!)
+                editingCounter = null
             }
         )
     }
+
+    if (showImportDialog) {
+        ImportDialog(
+            onDismiss = { showImportDialog = false },
+            onConfirm = { text ->
+                viewModel.importData(text)
+                showImportDialog = false
+            }
+        )
+    }
+
+    when (val status = importStatus) {
+        is ImportStatus.Success -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearImportStatus() },
+                title = { Text("Import Successful") },
+                text = {
+                    Column {
+                        status.results.forEach { (name, count) ->
+                            Text("$name: $count values added")
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.clearImportStatus() }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+        is ImportStatus.Error -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearImportStatus() },
+                title = { Text("Import Failed") },
+                text = { Text(status.message) },
+                confirmButton = {
+                    Button(onClick = { viewModel.clearImportStatus() }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+        else -> {}
+    }
+}
+
+@Composable
+fun ImportDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import Data") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Format:\nCounter Name\nMM/DD/YY [val1 val2 ...]",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                TextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    placeholder = { Text("Paste data here...") }
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(text) }) {
+                Text("Import")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
@@ -288,10 +455,57 @@ fun AddEditCounterDialog(
     initialAmount: Int = 10,
     title: String = "New Counter",
     onDismiss: () -> Unit,
-    onConfirm: (String, Int) -> Unit
+    onConfirm: (String, Int) -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     var name by remember { mutableStateOf(initialName) }
     var amountText by remember { mutableStateOf(initialAmount.toString()) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var deleteConfirmName by remember { mutableStateOf("") }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { 
+                showDeleteConfirm = false 
+                deleteConfirmName = ""
+            },
+            title = { Text("Delete Counter?") },
+            text = { 
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("This will permanently delete \"$initialName\" and all its historical data. This action cannot be undone.")
+                    Text("Please type \"$initialName\" to confirm:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    TextField(
+                        value = deleteConfirmName,
+                        onValueChange = { deleteConfirmName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(initialName) },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete?.invoke()
+                        showDeleteConfirm = false
+                        deleteConfirmName = ""
+                    },
+                    enabled = deleteConfirmName.trim() == initialName.trim(),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete Permanently")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showDeleteConfirm = false 
+                    deleteConfirmName = ""
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -308,6 +522,18 @@ fun AddEditCounterDialog(
                     onValueChange = { amountText = it },
                     label = { Text("Default Increment") }
                 )
+
+                if (onDelete != null) {
+                    TextButton(
+                        onClick = { showDeleteConfirm = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.padding(top = 16.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Delete Counter")
+                    }
+                }
             }
         },
         confirmButton = {

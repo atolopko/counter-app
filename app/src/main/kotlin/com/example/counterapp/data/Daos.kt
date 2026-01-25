@@ -11,6 +11,9 @@ interface CounterDao {
     @Query("SELECT * FROM counters WHERE id = :id")
     suspend fun getCounterById(id: Long): Counter?
 
+    @Query("SELECT * FROM counters WHERE name = :name LIMIT 1")
+    suspend fun getCounterByName(name: String): Counter?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCounter(counter: Counter): Long
 
@@ -34,6 +37,9 @@ interface EventLogDao {
 
     @Insert
     suspend fun insertLog(log: EventLog)
+
+    @Insert
+    suspend fun insertLogs(logs: List<EventLog>)
 
     @Update
     suspend fun updateLog(log: EventLog)
@@ -60,6 +66,13 @@ interface EventLogDao {
     suspend fun deleteLogAndUpdateCounter(log: EventLog, logs: List<EventLog>, counter: Counter, counterDao: CounterDao) {
         deleteEventLog(log)
         updateLogs(logs)
+        counterDao.updateCounter(counter)
+    }
+
+    @Transaction
+    suspend fun replaceLogsAndUpdateCounter(logs: List<EventLog>, counterId: Long, counter: Counter, counterDao: CounterDao) {
+        deleteLogsForCounter(counterId)
+        insertLogs(logs)
         counterDao.updateCounter(counter)
     }
 
