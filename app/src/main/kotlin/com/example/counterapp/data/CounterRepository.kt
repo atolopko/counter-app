@@ -11,6 +11,9 @@ class CounterRepository(
     fun getLogsForCounter(counterId: Long): Flow<List<EventLog>> =
         eventLogDao.getLogsForCounter(counterId)
 
+    fun getTodaySums(since: Long): Flow<List<CounterSum>> =
+        eventLogDao.getSumsSince(since)
+
     suspend fun addCounter(name: String, initialIncrement: Int) {
         counterDao.insertCounter(Counter(name = name, lastIncrementAmount = initialIncrement))
     }

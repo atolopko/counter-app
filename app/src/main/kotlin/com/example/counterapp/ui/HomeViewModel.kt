@@ -6,12 +6,38 @@ import com.example.counterapp.data.Counter
 import com.example.counterapp.data.CounterRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Calendar
+
+data class CounterUiModel(
+    val counter: Counter,
+    val addedToday: Int
+)
 
 class HomeViewModel(private val repository: CounterRepository) : ViewModel() {
-    val counters: StateFlow<List<Counter>> = repository.allCounters
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private fun getMidnightToday(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    val counters: StateFlow<List<CounterUiModel>> = combine(
+        repository.allCounters,
+        repository.getTodaySums(getMidnightToday())
+    ) { allCounters, todaySums ->
+        val sumsMap = todaySums.associate { it.counterId to it.total }
+        allCounters.map { counter ->
+            CounterUiModel(
+                counter = counter,
+                addedToday = sumsMap[counter.id] ?: 0
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addCounter(name: String, amount: Int) {
         viewModelScope.launch {

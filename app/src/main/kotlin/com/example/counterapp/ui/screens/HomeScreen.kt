@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.counterapp.data.Counter
 import com.example.counterapp.ui.HomeViewModel
+import com.example.counterapp.ui.CounterUiModel
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,17 +49,18 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(counters) { counter ->
+            items(counters) { model ->
                 CounterItem(
-                    counter = counter,
-                    onIncrement = { viewModel.incrementCounter(counter, it) },
+                    counter = model.counter,
+                    addedToday = model.addedToday,
+                    onIncrement = { viewModel.incrementCounter(model.counter, it) },
                     onUpdateIncrementAmount = { newAmount ->
-                        viewModel.updateCounter(counter.copy(lastIncrementAmount = newAmount))
+                        viewModel.updateCounter(model.counter.copy(lastIncrementAmount = newAmount))
                     },
-                    onUndo = { viewModel.undoLastIncrement(counter) },
-                    onEdit = { editingCounter = counter },
-                    onViewHistory = { onNavigateToHistory(counter.id) },
-                    onToggleExpand = { viewModel.updateCounter(counter.copy(isExpanded = it)) }
+                    onUndo = { viewModel.undoLastIncrement(model.counter) },
+                    onEdit = { editingCounter = model.counter },
+                    onViewHistory = { onNavigateToHistory(model.counter.id) },
+                    onToggleExpand = { viewModel.updateCounter(model.counter.copy(isExpanded = it)) }
                 )
             }
         }
@@ -91,6 +93,7 @@ fun HomeScreen(
 @Composable
 fun CounterItem(
     counter: Counter,
+    addedToday: Int,
     onIncrement: (Int) -> Unit,
     onUpdateIncrementAmount: (Int) -> Unit,
     onUndo: () -> Unit,
@@ -197,7 +200,16 @@ fun CounterItem(
                             fontWeight = FontWeight.Bold
                         ),
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(vertical = 12.dp)
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    
+                    Text(
+                        text = "Today: $addedToday",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
 
                     Row(

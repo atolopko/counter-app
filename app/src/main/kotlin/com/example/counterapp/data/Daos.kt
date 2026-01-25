@@ -62,4 +62,12 @@ interface EventLogDao {
         updateLogs(logs)
         counterDao.updateCounter(counter)
     }
+
+    @Query("SELECT counterId, SUM(amountChanged) as total FROM event_logs WHERE timestamp >= :since GROUP BY counterId")
+    fun getSumsSince(since: Long): Flow<List<CounterSum>>
 }
+
+data class CounterSum(
+    val counterId: Long,
+    val total: Int
+)
