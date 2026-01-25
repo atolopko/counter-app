@@ -44,7 +44,7 @@ import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
 import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.chart.line.LineChart.LineSpec
-import com.patrykandpatrick.vico.core.component.shape.Shapes
+import com.patrykandpatrick.vico.core.chart.column.ColumnChart
 import com.patrykandpatrick.vico.core.chart.layout.HorizontalLayout
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
@@ -111,10 +111,13 @@ fun HistoryScreen(
                         
                         // Update the producer when data changes
                         LaunchedEffect(dailyStats) {
-                            val entries = dailyStats.mapIndexed { index, stat ->
-                                entryOf(index.toFloat(), stat.count.toFloat())
+                            val cumulativeSeries = dailyStats.mapIndexed { index, stat ->
+                                entryOf(index.toFloat(), stat.cumulative.toFloat())
                             }
-                            chartEntryModelProducer.setEntries(entries)
+                            val addedSeries = dailyStats.mapIndexed { index, stat ->
+                                entryOf(index.toFloat(), stat.added.toFloat())
+                            }
+                            chartEntryModelProducer.setEntries(listOf(cumulativeSeries, addedSeries))
                         }
     
                         val xAxisValueFormatter = remember(dailyStats) {
@@ -143,10 +146,15 @@ fun HistoryScreen(
                             chart = columnChart(
                                 columns = listOf(
                                     lineComponent(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                                        shape = CircleShape
+                                    ),
+                                    lineComponent(
                                         color = MaterialTheme.colorScheme.primary,
                                         shape = CircleShape
                                     )
-                                )
+                                ),
+                                mergeMode = ColumnChart.MergeMode.Stack
                             ),
                             chartModelProducer = chartEntryModelProducer,
                             startAxis = rememberStartAxis(

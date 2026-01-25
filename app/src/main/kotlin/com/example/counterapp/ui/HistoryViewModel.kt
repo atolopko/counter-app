@@ -18,7 +18,8 @@ enum class HistoryRange {
 
 data class DailyAggregation(
     val date: LocalDate,
-    val count: Int
+    val added: Int,
+    val cumulative: Int
 )
 
 class HistoryViewModel(
@@ -36,12 +37,13 @@ class HistoryViewModel(
     private val _selectedRange = MutableStateFlow(HistoryRange.LAST_7_DAYS)
     val selectedRange: StateFlow<HistoryRange> = _selectedRange
 
-    val dailyStats: StateFlow<List<DailyAggregation>> = combine(logs, _selectedRange) { logs, range ->
+    val dailyStats: StateFlow<List<DailyAggregation>> = combine(logs, _selectedRange) { allLogs, range ->
         val zoneId = ZoneId.systemDefault()
         val today = LocalDate.now(zoneId)
+        val sortedLogs = allLogs.sortedBy { it.timestamp }
         
-        val maxLogDate = if (logs.isEmpty()) today 
-        else Instant.ofEpochMilli(logs.maxOf { it.timestamp }).atZone(zoneId).toLocalDate()
+        val maxLogDate = if (sortedLogs.isEmpty()) today 
+        else Instant.ofEpochMilli(sortedLogs.maxOf { it.timestamp }).atZone(zoneId).toLocalDate()
         
         val endDate = if (maxLogDate.isAfter(today)) maxLogDate else today
 
@@ -50,26 +52,52 @@ class HistoryViewModel(
             HistoryRange.LAST_30_DAYS -> today.minusDays(29)
             HistoryRange.YTD -> today.withDayOfYear(1)
             HistoryRange.ALL -> {
-                if (logs.isEmpty()) today
+                if (sortedLogs.isEmpty()) today
                 else {
-                    Instant.ofEpochMilli(logs.minOf { it.timestamp })
+                    Instant.ofEpochMilli(sortedLogs.minOf { it.timestamp })
                         .atZone(zoneId)
                         .toLocalDate()
                 }
             }
         }
 
-        val dayLogs = logs.groupBy {
-            Instant.ofEpochMilli(it.timestamp)
-                .atZone(zoneId)
-                .toLocalDate()
+        // Map of Date -> Total count at end of day and sum of increments that day
+        val dailySum = sortedLogs.groupBy {
+            Instant.ofEpochMilli(it.timestamp).atZone(zoneId).toLocalDate()
+        }.mapValues { (_, logs) ->
+            logs.sumOf { it.amountChanged }
+        }
+        
+        // Find total as of end of day for each day there's a log
+        val dailyClosingTotal = sortedLogs.groupBy {
+            Instant.ofEpochMilli(it.timestamp).atZone(zoneId).toLocalDate()
+        }.mapValues { (_, logs) ->
+            logs.last().resultingCount
         }
 
         val result = mutableListOf<DailyAggregation>()
         var current = startDate
+        var lastTotal = 0
+        
+        // Calculate the starting total (total before startDate)
+        val beforeLogs = sortedLogs.filter { 
+            Instant.ofEpochMilli(it.timestamp).atZone(zoneId).toLocalDate().isBefore(startDate)
+        }
+        if (beforeLogs.isNotEmpty()) {
+            lastTotal = beforeLogs.last().resultingCount
+        }
+
         while (!current.isAfter(endDate)) {
-            val sum = dayLogs[current]?.sumOf { it.amountChanged } ?: 0
-            result.add(DailyAggregation(current, sum))
+            val added = dailySum[current] ?: 0
+            val todayTotal = dailyClosingTotal[current] ?: lastTotal
+            
+            result.add(DailyAggregation(
+                date = current,
+                added = added,
+                cumulative = todayTotal - added
+            ))
+            
+            lastTotal = todayTotal
             current = current.plusDays(1)
         }
         result
