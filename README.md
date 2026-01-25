@@ -58,3 +58,22 @@ To run unit tests:
 ```bash
 ./gradlew test
 ```
+
+### Testing Backup and Restore
+
+**Note**: The backup manager is enabled by default on end-user devices. The following commands are for local developer testing and validation only.
+
+1. **Enable Backup Manager**:
+   ```bash
+   adb shell bmgr enabled
+   ```
+2. **Run a Manual Backup**:
+   ```bash
+   adb shell bmgr backupnow com.example.counterapp
+   ```
+3. **Simulate a Reinstall**:
+   - Uninstall and then reinstall the app on your device.
+   - Run the following command to restore the data:
+   ```bash
+   adb shell bmgr restore com.example.counterapp
+   ```
