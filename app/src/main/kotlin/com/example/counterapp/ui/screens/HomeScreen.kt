@@ -19,6 +19,11 @@ import com.example.counterapp.data.Counter
 import com.example.counterapp.ui.HomeViewModel
 import com.example.counterapp.ui.CounterUiModel
 import com.example.counterapp.ui.ImportStatus
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.content.Context
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,6 +43,10 @@ fun HomeScreen(
 ) {
     val counters by viewModel.counters.collectAsState()
     val importStatus by viewModel.importStatus.collectAsState()
+    val exportText by viewModel.exportText.collectAsState()
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    
     var showAddDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var editingCounter by remember { mutableStateOf<Counter?>(null) }
@@ -73,6 +82,14 @@ fun HomeScreen(
                             showImportDialog = true
                         },
                         leadingIcon = { Icon(Icons.Default.FileOpen, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Export Data") },
+                        onClick = {
+                            showFabMenu = false
+                            viewModel.exportData()
+                        },
+                        leadingIcon = { Icon(Icons.Default.SaveAlt, contentDescription = null) }
                     )
                 }
             }
@@ -223,6 +240,69 @@ fun HomeScreen(
         }
         else -> {}
     }
+
+    if (exportText != null) {
+        ExportDialog(
+            text = exportText!!,
+            onDismiss = { viewModel.clearExportText() },
+            onCopy = {
+                clipboardManager.setText(AnnotatedString(exportText!!))
+                viewModel.clearExportText()
+            },
+            onShare = {
+                val sendIntent: Intent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_TEXT, exportText)
+                    type = "text/plain"
+                }
+                val shareIntent = Intent.createChooser(sendIntent, "Export Counter Data")
+                context.startActivity(shareIntent)
+                viewModel.clearExportText()
+            }
+        )
+    }
+}
+
+@Composable
+fun ExportDialog(
+    text: String,
+    onDismiss: () -> Unit,
+    onCopy: () -> Unit,
+    onShare: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export Data") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "You can copy this data to your clipboard or share it to another app (like Drive, Email, or a File Manager).",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TextField(
+                    value = text,
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onCopy) {
+                    Text("Copy")
+                }
+                Button(onClick = onShare) {
+                    Text("Share / Save to...")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

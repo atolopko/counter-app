@@ -99,4 +99,18 @@ class HomeViewModel(private val repository: CounterRepository) : ViewModel() {
     fun clearImportStatus() {
         _importStatus.value = ImportStatus.Idle
     }
+
+    private val _exportText = MutableStateFlow<String?>(null)
+    val exportText: StateFlow<String?> = _exportText
+
+    fun exportData() {
+        viewModelScope.launch {
+            val text = repository.exportToText()
+            _exportText.value = text
+        }
+    }
+
+    fun clearExportText() {
+        _exportText.value = null
+    }
 }

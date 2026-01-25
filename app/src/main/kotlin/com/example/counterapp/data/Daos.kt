@@ -8,6 +8,9 @@ interface CounterDao {
     @Query("SELECT * FROM counters")
     fun getAllCounters(): Flow<List<Counter>>
 
+    @Query("SELECT * FROM counters")
+    suspend fun getAllCountersList(): List<Counter>
+
     @Query("SELECT * FROM counters WHERE id = :id")
     suspend fun getCounterById(id: Long): Counter?
 

@@ -1,6 +1,7 @@
 package com.example.counterapp.data
 
 import kotlinx.coroutines.flow.Flow
+import java.text.SimpleDateFormat
 import java.util.*
 
 class CounterRepository(
@@ -190,5 +191,35 @@ class CounterRepository(
             }
         }
         return summary
+    }
+
+    suspend fun exportToText(): String {
+        val counters = counterDao.getAllCountersList()
+        val sb = StringBuilder()
+        val sdf = SimpleDateFormat("MM/dd/yy", Locale.getDefault())
+
+        for (counter in counters) {
+            val logs = eventLogDao.getAllLogsForCounterAsc(counter.id)
+            if (logs.isNotEmpty()) {
+                sb.append("${counter.name}\n")
+                val logsByDate = logs.groupBy { 
+                    val cal = Calendar.getInstance()
+                    cal.timeInMillis = it.timestamp
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    cal.timeInMillis
+                }
+
+                for ((dateTs, dayLogs) in logsByDate.toSortedMap()) {
+                    val dateStr = sdf.format(Date(dateTs))
+                    val values = dayLogs.joinToString(" ") { it.amountChanged.toString() }
+                    sb.append("$dateStr $values\n")
+                }
+                sb.append("\n")
+            }
+        }
+        return sb.toString().trim()
     }
 }
