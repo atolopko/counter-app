@@ -336,8 +336,9 @@ fun LogItem(log: EventLog, onEdit: () -> Unit, onDelete: () -> Unit) {
     }
 
     ListItem(
-        headlineContent = { Text("Result: ${log.resultingCount}") },
-        supportingContent = { Text("Change: ${if (log.amountChanged > 0) "+" else ""}${log.amountChanged}") },
+        headlineContent = { 
+            Text("${if (log.amountChanged > 0) "+" else ""}${log.amountChanged} (${log.resultingCount})") 
+        },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(dateString, modifier = Modifier.padding(end = 8.dp))

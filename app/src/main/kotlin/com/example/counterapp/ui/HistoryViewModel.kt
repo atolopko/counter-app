@@ -40,7 +40,7 @@ class HistoryViewModel(
     val dailyStats: StateFlow<List<DailyAggregation>> = combine(logs, _selectedRange) { allLogs, range ->
         val zoneId = ZoneId.systemDefault()
         val today = LocalDate.now(zoneId)
-        val sortedLogs = allLogs.sortedBy { it.timestamp }
+        val sortedLogs = allLogs.sortedWith(compareBy({ it.timestamp }, { it.id }))
         
         val maxLogDate = if (sortedLogs.isEmpty()) today 
         else Instant.ofEpochMilli(sortedLogs.maxOf { it.timestamp }).atZone(zoneId).toLocalDate()

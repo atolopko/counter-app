@@ -67,7 +67,7 @@ class CounterRepository(
             logs[logIndex] = logs[logIndex].copy(amountChanged = newAmount, timestamp = newTimestamp)
             
             // Re-sort in case timestamp changed
-            logs.sortBy { it.timestamp }
+            logs.sortWith(compareBy({ it.timestamp }, { it.id }))
             
             // Recalculate resulting counts
             var runningCount = 0

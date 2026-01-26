@@ -29,13 +29,13 @@ interface CounterDao {
 
 @Dao
 interface EventLogDao {
-    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp ASC")
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp ASC, id ASC")
     fun getLogsForCounterAsc(counterId: Long): Flow<List<EventLog>>
 
-    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp ASC")
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp ASC, id ASC")
     suspend fun getAllLogsForCounterAsc(counterId: Long): List<EventLog>
 
-    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC")
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC, id DESC")
     fun getLogsForCounter(counterId: Long): Flow<List<EventLog>>
 
     @Insert
@@ -53,10 +53,10 @@ interface EventLogDao {
     @Query("SELECT * FROM event_logs WHERE timestamp IN (SELECT MAX(timestamp) FROM event_logs GROUP BY counterId)")
     fun getLatestLogsForAllCounters(): Flow<List<EventLog>>
 
-    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC LIMIT 1")
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC, id DESC LIMIT 1")
     fun getLatestLogFlow(counterId: Long): Flow<EventLog?>
 
-    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC LIMIT 1")
+    @Query("SELECT * FROM event_logs WHERE counterId = :counterId ORDER BY timestamp DESC, id DESC LIMIT 1")
     suspend fun getLatestLogForCounter(counterId: Long): EventLog?
 
     @Delete
