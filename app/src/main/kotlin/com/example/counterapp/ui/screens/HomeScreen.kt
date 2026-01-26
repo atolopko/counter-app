@@ -554,11 +554,18 @@ fun CounterItem(
                                         Icon(Icons.Default.Remove, contentDescription = "Decrease Step", modifier = Modifier.size(20.dp))
                                     }
                                     
+                                    var editAmountText by remember(counter.lastIncrementAmount) { 
+                                        mutableStateOf(counter.lastIncrementAmount.toString()) 
+                                    }
+                                    
                                     BasicTextField(
-                                        value = counter.lastIncrementAmount.toString(),
+                                        value = editAmountText,
                                         onValueChange = { newValue ->
-                                            val amount = newValue.filter { it.isDigit() }.toIntOrNull() ?: 1
-                                            onUpdateIncrementAmount(amount)
+                                            val filtered = newValue.filter { it.isDigit() }
+                                            editAmountText = filtered
+                                            filtered.toIntOrNull()?.let { amount ->
+                                                if (amount > 0) onUpdateIncrementAmount(amount)
+                                            }
                                         },
                                         modifier = Modifier.width(60.dp),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
