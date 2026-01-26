@@ -74,108 +74,113 @@ fun HistoryScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            // Fixed Top Panel: Range selector and Graph
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        HistoryRange.values().forEachIndexed { index, range ->
-                            val label = when (range) {
-                                HistoryRange.LAST_7_DAYS -> "7d"
-                                HistoryRange.LAST_30_DAYS -> "30d"
-                                HistoryRange.YTD -> "YTD"
-                                HistoryRange.ALL -> "All"
-                            }
-                            SegmentedButton(
-                                selected = selectedRange == range,
-                                onClick = { viewModel.setRange(range) },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = HistoryRange.values().size)
-                            ) {
-                                Text(label, style = MaterialTheme.typography.labelSmall)
+                    HistoryRange.values().forEachIndexed { index, range ->
+                        val label = when (range) {
+                            HistoryRange.LAST_7_DAYS -> "7d"
+                            HistoryRange.LAST_30_DAYS -> "30d"
+                            HistoryRange.YTD -> "YTD"
+                            HistoryRange.ALL -> "All"
+                        }
+                        SegmentedButton(
+                            selected = selectedRange == range,
+                            onClick = { viewModel.setRange(range) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = HistoryRange.values().size)
+                        ) {
+                            val displayText = label
+                            Text(displayText, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+                
+                if (dailyStats.isNotEmpty()) {
+                    val xAxisValueFormatter = remember(dailyStats) {
+                        val formatter = DateTimeFormatter.ofPattern("MM/dd")
+                        AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
+                            val index = value.toInt()
+                            if (index in dailyStats.indices) {
+                                dailyStats[index].date.format(formatter)
+                            } else {
+                                ""
                             }
                         }
                     }
-                    
-                    if (dailyStats.isNotEmpty()) {
-                        val xAxisValueFormatter = remember(dailyStats) {
-                            val formatter = DateTimeFormatter.ofPattern("MM/dd")
-                            AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
-                                val index = value.toInt()
-                                if (index in dailyStats.indices) {
-                                    dailyStats[index].date.format(formatter)
-                                } else {
-                                    ""
-                                }
-                            }
+
+                    val yAxisValueFormatter = remember {
+                        AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                            value.toInt().toString()
                         }
-    
-                        val yAxisValueFormatter = remember {
-                            AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
-                                value.toInt().toString()
-                            }
-                        }
-    
-                        Chart(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(250.dp)
-                                .padding(top = 16.dp),
-                            chart = columnChart(
-                                columns = listOf(
-                                    lineComponent(
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                                        shape = CircleShape
-                                    ),
-                                    lineComponent(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        shape = CircleShape
-                                    )
+                    }
+
+                    Chart(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .padding(top = 16.dp),
+                        chart = columnChart(
+                            columns = listOf(
+                                lineComponent(
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                                    shape = CircleShape
                                 ),
-                                mergeMode = ColumnChart.MergeMode.Stack
+                                lineComponent(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape
+                                )
                             ),
-                            chartModelProducer = viewModel.modelProducer,
-                            startAxis = rememberStartAxis(
-                                valueFormatter = yAxisValueFormatter,
-                                itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 6)
+                            mergeMode = ColumnChart.MergeMode.Stack
+                        ),
+                        chartModelProducer = viewModel.modelProducer,
+                        startAxis = rememberStartAxis(
+                            valueFormatter = yAxisValueFormatter,
+                            itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 6)
+                        ),
+                        bottomAxis = rememberBottomAxis(
+                            label = textComponent(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textSize = 8.sp,
+                                textAlign = Paint.Align.CENTER
                             ),
-                            bottomAxis = rememberBottomAxis(
-                                label = textComponent(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textSize = 8.sp,
-                                    textAlign = Paint.Align.CENTER
-                                ),
-                                labelRotationDegrees = -45f,
-                                valueFormatter = xAxisValueFormatter,
-                                itemPlacer = AxisItemPlacer.Horizontal.default(spacing = 2)
-                            ),
-                            horizontalLayout = HorizontalLayout.Segmented,
-                            chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
-                            isZoomEnabled = false
-                        )
-                    } else {
-                        Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Text("No data for this range")
-                        }
+                            labelRotationDegrees = -45f,
+                            valueFormatter = xAxisValueFormatter,
+                            itemPlacer = AxisItemPlacer.Horizontal.default(spacing = 2)
+                        ),
+                        horizontalLayout = HorizontalLayout.Segmented,
+                        chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
+                        isZoomEnabled = false
+                    )
+                } else {
+                    Box(modifier = Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text("No data for this range")
                     }
                 }
             }
 
-            item { HorizontalDivider() }
+            HorizontalDivider()
 
-            items(logs) { log ->
-                LogItem(
-                    log = log,
-                    onEdit = { editingLog = log },
-                    onDelete = { viewModel.deleteLog(log.id) }
-                )
+            // Scrollable Bottom Panel: Event Logs
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            ) {
+                items(logs) { log ->
+                    LogItem(
+                        log = log,
+                        onEdit = { editingLog = log },
+                        onDelete = { viewModel.deleteLog(log.id) }
+                    )
+                }
             }
         }
 
