@@ -11,6 +11,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
+import com.patrykandpatrick.vico.core.entry.entryOf
 
 enum class HistoryRange {
     LAST_7_DAYS, LAST_30_DAYS, YTD, ALL
@@ -26,6 +28,8 @@ class HistoryViewModel(
     private val repository: CounterRepository,
     private val counterId: Long
 ) : ViewModel() {
+    
+    val modelProducer = ChartEntryModelProducer()
     
     val counter: StateFlow<Counter?> = flow {
         emit(repository.getCounterById(counterId))
@@ -102,6 +106,22 @@ class HistoryViewModel(
         }
         result
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        viewModelScope.launch {
+            dailyStats.collect { stats ->
+                if (stats.isNotEmpty()) {
+                    val cumulativeSeries = stats.mapIndexed { index, stat ->
+                        entryOf(index.toFloat(), stat.cumulative.toFloat())
+                    }
+                    val addedSeries = stats.mapIndexed { index, stat ->
+                        entryOf(index.toFloat(), stat.added.toFloat())
+                    }
+                    modelProducer.setEntries(listOf(cumulativeSeries, addedSeries))
+                }
+            }
+        }
+    }
 
     fun setRange(range: HistoryRange) {
         _selectedRange.value = range

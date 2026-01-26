@@ -46,8 +46,6 @@ import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.chart.line.LineChart.LineSpec
 import com.patrykandpatrick.vico.core.chart.column.ColumnChart
 import com.patrykandpatrick.vico.core.chart.layout.HorizontalLayout
-import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
-import com.patrykandpatrick.vico.core.entry.entryOf
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -107,19 +105,6 @@ fun HistoryScreen(
                     }
                     
                     if (dailyStats.isNotEmpty()) {
-                        val chartEntryModelProducer = remember { ChartEntryModelProducer() }
-                        
-                        // Update the producer when data changes
-                        LaunchedEffect(dailyStats) {
-                            val cumulativeSeries = dailyStats.mapIndexed { index, stat ->
-                                entryOf(index.toFloat(), stat.cumulative.toFloat())
-                            }
-                            val addedSeries = dailyStats.mapIndexed { index, stat ->
-                                entryOf(index.toFloat(), stat.added.toFloat())
-                            }
-                            chartEntryModelProducer.setEntries(listOf(cumulativeSeries, addedSeries))
-                        }
-    
                         val xAxisValueFormatter = remember(dailyStats) {
                             val formatter = DateTimeFormatter.ofPattern("MM/dd")
                             AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
@@ -156,7 +141,7 @@ fun HistoryScreen(
                                 ),
                                 mergeMode = ColumnChart.MergeMode.Stack
                             ),
-                            chartModelProducer = chartEntryModelProducer,
+                            chartModelProducer = viewModel.modelProducer,
                             startAxis = rememberStartAxis(
                                 valueFormatter = yAxisValueFormatter,
                                 itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 6)
