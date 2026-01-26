@@ -5,9 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -34,6 +33,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.example.counterapp.data.EventLog
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -343,6 +346,58 @@ fun ImportDialog(
 }
 
 @Composable
+fun AnimatedCounterText(
+    count: Int,
+    style: TextStyle,
+    color: Color = Color.Unspecified,
+    modifier: Modifier = Modifier,
+    prefix: String = ""
+) {
+    var previousCount by remember { mutableStateOf(count) }
+    
+    // Scale animation triggered on change
+    var scale by remember { mutableFloatStateOf(1f) }
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+
+    LaunchedEffect(count) {
+        if (count != previousCount) {
+            scale = 1.2f
+            delay(100)
+            scale = 1f
+            previousCount = count
+        }
+    }
+
+    AnimatedContent(
+        targetState = count,
+        transitionSpec = {
+            if (targetState > initialState) {
+                slideInVertically { height -> height } + fadeIn() togetherWith
+                        slideOutVertically { height -> -height } + fadeOut()
+            } else {
+                slideInVertically { height -> -height } + fadeIn() togetherWith
+                        slideOutVertically { height -> height } + fadeOut()
+            }.using(SizeTransform(clip = false))
+        },
+        label = "counter",
+        modifier = modifier.graphicsLayer(scaleX = animatedScale, scaleY = animatedScale)
+    ) { targetCount ->
+        Text(
+            text = "$prefix$targetCount",
+            style = style,
+            color = color
+        )
+    }
+}
+
+@Composable
 fun CounterItem(
     counter: Counter,
     addedToday: Int,
@@ -415,8 +470,9 @@ fun CounterItem(
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         if (!counter.isExpanded) {
-                            Text(
-                                text = "Count: ${counter.currentCount}",
+                            AnimatedCounterText(
+                                count = counter.currentCount,
+                                prefix = "Count: ",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -455,8 +511,8 @@ fun CounterItem(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
                 ) {
-                    Text(
-                        text = "${counter.currentCount}",
+                    AnimatedCounterText(
+                        count = counter.currentCount,
                         style = MaterialTheme.typography.displayLarge.copy(
                             fontWeight = FontWeight.Bold
                         ),
@@ -464,8 +520,9 @@ fun CounterItem(
                         modifier = Modifier.padding(top = 12.dp)
                     )
                     
-                    Text(
-                        text = "Today: $addedToday",
+                    AnimatedCounterText(
+                        count = addedToday,
+                        prefix = "Today: ",
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontWeight = FontWeight.Bold
                         ),
