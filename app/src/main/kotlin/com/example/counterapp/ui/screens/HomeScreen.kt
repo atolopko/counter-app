@@ -412,7 +412,7 @@ fun CounterItem(
                     Column {
                         Text(
                             text = counter.name,
-                            style = MaterialTheme.typography.titleLarge
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         if (!counter.isExpanded) {
                             Text(
