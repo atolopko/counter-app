@@ -71,9 +71,32 @@ To run unit tests:
    ```bash
    adb shell bmgr backupnow com.example.counterapp
    ```
-3. **Simulate a Reinstall**:
-   - Uninstall and then reinstall the app on your device.
-   - Run the following command to restore the data:
+3. **Get the Restore Token**:
+   To restore, you first need to find the backup token for the current backup set.
    ```bash
-   adb shell bmgr restore com.example.counterapp
+   adb shell bmgr list sets
    ```
+   This will output a list of backup sets. Copy the long hexadecimal token from the output.
+   _Example output:_ `0123456789abcdef : Full-data backup set`
+
+4. **Simulate a Restore**
+
+   **Option A: Automatic Restore (via Reinstall)**
+
+   This simulates the standard end-user experience.
+   - Uninstall and then reinstall the app on your device.
+   - **Expected Behavior:** On modern Android, the system should automatically restore the most recent backup upon reinstallation. After reinstalling, open the app, and your data should already be there.
+
+   **Option B: Manual Restore (For Debugging)**
+
+   To test the `bmgr restore` command directly, you must avoid the automatic restore. You can do this by clearing the app data instead of reinstalling.
+
+   a. **Clear App Data**: This wipes all data without uninstalling the app.
+      ```bash
+      adb shell pm clear com.example.counterapp
+      ```
+   b. **Run Manual Restore**: Now execute the restore command with your token.
+      ```bash
+      adb shell bmgr restore <TOKEN> com.example.counterapp
+      ```
+   c. **Verify**: Launch the app. Your data should now be restored.
